@@ -1,0 +1,172 @@
+import pyautogui
+import tkinter as tk
+from tkinter import messagebox
+import wmi
+
+# Fungsi untuk mendapatkan tangkapan layar saat ini
+def get_screen_capture():
+    screen = pyautogui.screenshot()
+    return screen
+
+# Fungsi untuk mendeteksi apakah layar berwarna hitam atau mendekati warna hitam berdasarkan jumlah piksel hitam
+def is_screen_color_black():
+    screen = get_screen_capture()
+    # Mengkonversi gambar dalam variabel "screen" menjadi gambar dalam format skala abu-abu (grayscale)
+    grayscale_image = screen.convert("L")
+    # Mendapatkan data piksel dari gambar dalam format skala abu-abu
+    pixel_data = grayscale_image.getdata()
+    # Menghitung jumlah piksel hitam
+    black_pixel_count = sum(1 for pixel in pixel_data if pixel < 100)  
+    # Menghitung batas untuk jumlah piksel hitam * 0.5 (50%)
+    black_pixel_threshold = int(grayscale_image.width * grayscale_image.height * 0.5)
+    # return true, layar dianggap hitam jika jumlah piksel hitam lebih besar dari batas piksel hitam yang sudah ditentukan, return false jika sebaliknya
+    return black_pixel_count > black_pixel_threshold
+
+# Fungsi untuk meningkatkan kecerahan layar
+def increase_brightness(mode):
+    if mode == "Day":
+        brightness_value = 100
+    elif mode == "Night":
+        brightness_value = 95  
+    elif mode == "Sleepy":
+        brightness_value = 85   
+    
+    # Membuat objek WMI untuk mengakses fungsi-fungsi kontrol kecerahan layar
+    wmi_obj = wmi.WMI(namespace="wmi")
+    # Memanggil fungsi WmiSetBrightness() untuk mengatur kecerahan layar dengan nilai brightness_value
+    brightness = wmi_obj.WmiMonitorBrightnessMethods()[0].WmiSetBrightness(brightness_value, 0)
+    # return true untuk nilai kecerahan yang sudah diatur
+    return brightness
+
+# Fungsi untuk mengurangi kecerahan layar
+def decrease_brightness(mode):
+    if mode == "Day":
+        brightness_value = 60
+    elif mode == "Night":
+        brightness_value = 55
+    elif mode == "Sleepy":
+        brightness_value = 40
+    
+    # Membuat objek WMI untuk mengakses fungsi-fungsi kontrol kecerahan layar
+    wmi_obj = wmi.WMI(namespace="wmi")
+    # Memanggil fungsi WmiSetBrightness() untuk mengatur kecerahan layar dengan nilai brightness_value
+    brightness = wmi_obj.WmiMonitorBrightnessMethods()[0].WmiSetBrightness(brightness_value, 0)
+    # return true untuk nilai kecerahan yang sudah diatur
+    return brightness
+
+# Fungsi print untuk mode kecerahan layar yang sudah dipilih
+def adjust_brightness(mode):
+    # Menyembunyikan jendela aplikasi dari layar
+    root.withdraw()
+    # Menampilkan ikon jendela aplikasi di taskbar setelah menyembunyikan jendela aplikasi dari layar
+    root.iconify()  
+    while True:
+        if is_screen_color_black():
+            increase_brightness(mode)
+            print("Kecerahan layar ditingkatkan.")
+        else:
+            decrease_brightness(mode)
+            print("Kecerahan layar dikurangi.")
+            
+# Fungsi minimize untuk jendela aplikasi
+def minimize_window():
+    root.iconify()
+
+# Fungsi maximize atau normal untuk jendela aplikasi 
+def maximize_window():
+    if root.state() == "normal":
+        root.state("zoomed")
+    else:
+        root.state("normal")
+
+# Fungsi menutup untuk jendela aplikasi
+def close_window():
+    if messagebox.askokcancel("Confirmation", "Are you sure you want to quit?"):
+        root.destroy()
+
+# Variabel untuk menyimpan posisi awal saat melakukan drag jendela
+drag_start_x = 0
+drag_start_y = 0
+
+# Fungsi untuk mengatur posisi jendela aplikasi saat melakukan drag
+def drag_window(event):
+    x = root.winfo_pointerx() - drag_start_x
+    y = root.winfo_pointery() - drag_start_y
+    root.geometry(f"+{x}+{y}")           
+            
+# Fungsi yang dipanggil saat tombol radio dipilih
+def handle_radio_selection():
+    mode = var.get()
+    if mode == "Day":
+        messagebox.showinfo("Info", "You have selected day mode.")
+    elif mode == "Night":
+        messagebox.showinfo("Info", "You have selected night mode.")
+    elif mode == "Sleepy":
+        messagebox.showinfo("Info", "You have selected sleepy mode.")
+    adjust_brightness(mode)
+    
+    # Mengatur ulang posisi awal saat mengganti mode kecerahan
+    global drag_start_x
+    global drag_start_y
+    drag_start_x = 0
+    drag_start_y = 0
+    
+# Membuat judul jendela aplikasi
+root = tk.Tk()
+root.title("Automatic Screen Brightness Control")
+
+# Membuat label untuk memilih mode kecerahan
+label = tk.Label(root, text="Select Brightness Mode:")
+label.grid(row=1, column=0, sticky="w", padx=10, pady=(20, 10))  # Mengatur penempatan label ke kiri (west) dengan jarak padding
+
+# Variabel untuk menyimpan nilai radio button yang dipilih
+var = tk.StringVar(value="Day")
+
+# Membuat radio button untuk Day Mode
+radio_button_day_mode = tk.Radiobutton(root, text="Day Mode", variable=var, value="Day", command=handle_radio_selection)
+radio_button_day_mode.grid(row=2, column=0, sticky="w", padx=10, pady=1)  # Mengatur penempatan tombol ke kiri (west) tanpa padding pada sumbu y
+
+# Membuat radio button untuk Night Mode
+radio_button_night_mode = tk.Radiobutton(root, text="Night Mode", variable=var, value="Night", command=handle_radio_selection)
+radio_button_night_mode.grid(row=3, column=0, sticky="w", padx=10, pady=1)  # Mengatur penempatan tombol ke kiri (west) tanpa padding pada sumbu y
+
+# Membuat radio button untuk Sleepy Mode
+radio_button_sleepy_mode = tk.Radiobutton(root, text="Sleepy Mode", variable=var, value="Sleepy", command=handle_radio_selection)
+radio_button_sleepy_mode.grid(row=4, column=0, sticky="w", padx=10, pady=1)  # Mengatur penempatan tombol ke kiri (west) tanpa padding pada sumbu y
+
+# Mendapatkan lebar dan tinggi layar komputer
+screen_width = root.winfo_screenwidth()
+screen_height = root.winfo_screenheight()
+
+# Menentukan ukuran jendela aplikasi
+window_width = 500
+window_height = 245
+
+# Menghitung posisi x dan y untuk meletakkan jendela aplikasi ke tengah layar
+x = (screen_width // 2) - (window_width // 2)
+y = (screen_height // 2) - (window_height // 2)
+
+# Meletakkan jendela aplikasi ke tengah layar
+root.geometry(f"{window_width}x{window_height}+{x}+{y}")
+
+# Menambahkan fungsi drag pada jendela aplikasi
+root.bind("<Button-1>", lambda event: (setattr(root, "drag_start_x", event.x), setattr(root, "drag_start_y", event.y)))
+root.bind("<B1-Motion>", drag_window)
+ 
+# Membuat minimize button
+minimize_button = tk.Button(root, text="Minimize", command=minimize_window)
+# Meletakkan minimize button dari posisi kiri (west), dimulai dari row 5 padx 10 (padding sumbu x) dan dimulai dari column 0 pady atas 15, pady bawah 30 (padding sumbu y)
+minimize_button.grid(sticky="w", row=5, padx=10, column=0, pady=(15, 30)) 
+
+# Membuat maximize button
+maximize_button = tk.Button(root, text="Maximize", command=maximize_window)
+# Meletakkan maximize button dari posisi kiri (west), dimulai dari row 5 padx 210 (padding sumbu x) dan dimulai dari column 0 pady atas 15, pady bawah 30 (padding sumbu y)
+maximize_button.grid(sticky="w", row=5, padx=210, column=0, pady=(15, 30))  
+
+# Membuat close button
+close_button = tk.Button(root, text="Close", command=close_window)
+# Meletakkan close button dari posisi kiri (west), dimulai dari row 5 padx 432 (padding sumbu x) dan dimulai dari column 0 pady atas 15, pady bawah 30 (padding sumbu y)
+close_button.grid(sticky="w", row=5, padx=432, column=0, pady=(15, 30))  
+
+# Memulai loop utama untuk menjalankan aplikasi
+root.mainloop()
